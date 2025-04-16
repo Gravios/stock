@@ -1,0 +1,66 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Node modules (frontend & backend)
+**/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Vite cache
+.vite/
+
+# Coverage reports
+coverage/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python cache and venv
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+.eggs/
+.env/
+.venv/
+*.sqlite3
+
+# Docker volume and db artifacts
+authdb-data/
+db-data/
+*.db
+
+# Prisma
+prisma/dev.db
+prisma/migrations/
+
+# Local secret files
+*.pem
+*.key
+*.crt
+
+# Zip or tarballs
+*.zip
+*.tar.gz
