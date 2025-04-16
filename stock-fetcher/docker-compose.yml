@@ -1,0 +1,53 @@
+
+
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=${POSTGRESS_DB}
+      - POSTGRES_USER=${POSTGRESS_USER}
+      - POSTGRES_PASSWORD=${POSTGRESS_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth=trust
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  fetcher:
+    build: ./fetcher
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_NAME=${POSTGRESS_DB}
+      - DB_USER=${POSTGRESS_USER}
+      - DB_PASS=${POSTGRESS_PASSWORD}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - fetcher
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - frontend
+      - fetcher
+
+volumes:
+  pgdata:
+

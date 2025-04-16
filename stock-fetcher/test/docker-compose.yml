@@ -1,0 +1,41 @@
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: stockdb
+      POSTGRES_USER: stockuser
+      POSTGRES_PASSWORD: stockpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  fetcher:
+    build: ./fetcher
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: stockdb
+      DB_USER: stockuser
+      DB_PASS: stockpass
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - fetcher
+
+volumes:
+  pgdata:
