@@ -1,25 +1,42 @@
 """doc."""
+import os
 import yfinance as yf
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from datetime import datetime, timedelta
 
+frontend_host = os.getenv("FRONTEND_HOST")
+frontend_port = os.getenv("FRONTEND_PORT")
 
 app = FastAPI()
 
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5000",
+                   "http://localhost:5000/api/"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Database connection function
-def get_conn():
+def get_stockdb_conn():
     """
     docs.
 
     docs
     """
+    print(os.getenv("STOCKDB_HOST"))
+    print(os.getenv("STOCKDB_DB"))
+    print(os.getenv("STOCKDB_USER"))
+    print(os.getenv("STOCKDB_PASSWORD"))
     return psycopg2.connect(
-        host="db",
-        database="stockdb",
-        user="gravio",
-        password="[UgjtYd.Oyrjto]69"
+        host=os.getenv("STOCKDB_HOST"),
+        database=os.getenv("STOCKDB_DB"),
+        user=os.getenv("STOCKDB_USER"),
+        password=os.getenv("STOCKDB_PASSWORD")
     )
 
 
@@ -42,7 +59,7 @@ def insert_data_into_db(data, symbol: str):
 
     docs
     """
-    conn = get_conn()
+    conn = get_stockdb_conn()
     cur = conn.cursor()
 
     for date, row in data.iterrows():
@@ -65,10 +82,17 @@ def insert_data_into_db(data, symbol: str):
 
 # Insert metadata into PostgreSQL
 def insert_metadata_into_db(metadata):
-    conn = get_conn()
+    """
+    docs.
+
+    docs
+    """
+    conn = get_stockdb_conn()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO stock_metadata (symbol, long_name, sector, industry, market_cap, price, exchange, last_updated)
+        INSERT INTO stock_metadata
+        (symbol, long_name, sector, industry,
+         market_cap, price, exchange, last_updated)
         VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
         ON CONFLICT (symbol) DO UPDATE SET
             long_name = EXCLUDED.long_name,
@@ -79,8 +103,10 @@ def insert_metadata_into_db(metadata):
             exchange = EXCLUDED.exchange,
             last_updated = NOW();
     """, (
-        metadata['symbol'], metadata['long_name'], metadata['sector'], metadata['industry'],
-        metadata['market_cap'], metadata['price'], metadata['exchange']
+        metadata['symbol'], metadata['long_name'],
+        metadata['sector'], metadata['industry'],
+        metadata['market_cap'], metadata['price'],
+        metadata['exchange']
     ))
     conn.commit()
     conn.close()
@@ -114,17 +140,24 @@ async def populate_stock_data(symbol: str, start_date: str, end_date: str):
     # Insert data into the database
     insert_data_into_db(stock_data, symbol)
 
-    return {"message": f"Stock data for {symbol} has been successfully populated from {start_date} to {end_date}."}
+    return {"message": f"Stock data for {symbol} has been successfully "
+            + f"populated from {start_date} to {end_date}."}
 
 
 # Endpoint to fetch and populate metadata for a given symbol
 @app.get("/api/populate-metadata/{symbol}")
 async def populate_metadata(symbol: str):
+    """
+    docs.
+
+    docs
+    """
     stock = yf.Ticker(symbol)
     info = stock.info
 
     if not info:
-        raise HTTPException(status_code=404, detail=f"No metadata found for symbol: {symbol}")
+        raise HTTPException(status_code=404,
+                            detail=f"No metadata found for symbol: {symbol}")
 
     metadata = {
         'symbol': symbol.upper(),
@@ -138,7 +171,8 @@ async def populate_metadata(symbol: str):
 
     insert_metadata_into_db(metadata)
 
-    return {"message": f"Metadata for {symbol.upper()} populated successfully.", "data": metadata}
+    return {"message": f"Metadata for {symbol.upper()} populated successfully.",
+            "data": metadata}
 
 
 
@@ -150,7 +184,7 @@ def read_stock(symbol: str, limit: int = 10):
 
     docs
     """
-    conn = get_conn()
+    conn = get_stockdb_conn()
     cur = conn.cursor()
     cur.execute("""
         SELECT date, open, high, low, close, volume
@@ -172,7 +206,7 @@ def read_daily_summary(symbol: str):
 
     docs
     """
-    conn = get_conn()
+    conn = get_stockdb_conn()
     cur = conn.cursor()
     end_date = datetime.today()
     start_date = end_date - timedelta(days=7)

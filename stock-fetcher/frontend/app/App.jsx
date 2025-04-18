@@ -1,52 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-//import apiClient from '.apiClient';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { getStockData, getDailySummary, getMetadata, populateMetadata } from './api';
 
 export default function App() {
+  const [session, setSession] = useState(null);
   const [symbol, setSymbol] = useState("AAPL");
   const [data, setData] = useState([]);
   const [summary, setSummary] = useState([]);
   const [metadata, setMetadata] = useState({});
+  const handleLogout = () => {
+      localStorage.removeItem("token"); // 🚫 clear token
+      window.location.reload();         // 🔄 reload to return to login
+  };
 
   useEffect(() => {
-    axios.get(`/api/stock/${symbol}?limit=7`)
-      .then(res => setData(res.data.data.map(d => ({
-        date: d[0],
-        open: d[1],
-        high: d[2],
-        low: d[3],
-        close: d[4],
-        volume: d[5]
-      })) ))
-      .catch(err => console.error(err));
+       getStockData(symbol)
+         .then(res => setData(res.data.data.map(d => ({
+               date: d[0],
+               open: d[1],
+               high: d[2],
+               low: d[3],
+               close: d[4],
+               volume: d[5]
+           }))))
+          .catch(err => console.error(err));
 
-    axios.get(`/api/stock/${symbol}/daily-summary`)
-      .then(res => setSummary(res.data))
-      .catch(err => console.error(err));
+       getDailySummary(symbol)
+         .then(res => setSummary(res.data))
+         .catch(err => console.error(err));
 
-    axios.get(`/api/stock/${symbol}/metadata`)
-      .then(res => setMetadata(res.data))
-      .catch(err => console.error(err));
-  }, [symbol]);
-
-
-  const populateMetadata = () => {
-    axios.get(`/api/populate-metadata/${symbol}`)
-         .then(res => alert(res.data.message))
-         .catch(err => alert(`Error: ${err.response.data.detail}`));
-  };
+       getMetadata(symbol)
+         .then(res => setMetadata(res.data))
+         .catch(err => console.error(err));
+  }, [symbol, session]);
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Stock Dashboard</h1>
+      <button onClick={handleLogout}>Log Out</button>
+      <h1>Stock Dashboard</h1> 
       <select onChange={e => setSymbol(e.target.value)} value={symbol}>
         <option value="AAPL">AAPL</option>
         <option value="GOOG">GOOG</option>
         <option value="MSFT">MSFT</option>
       </select>
 
-      <button onClick={populateMetadata} style={{ marginLeft: 10 }}>
+      <button onClick={() => populateMetadata(symbol)
+                               .then(res => alert(res.data.message))
+                               .catch(err => alert(err.message))}
+              style={{ marginLeft: 10 }}>
         Populate Metadata
       </button>
 

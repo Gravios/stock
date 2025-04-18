@@ -1,53 +1,93 @@
 
 
-
 services:
-  db:
+  stockdb:
     image: postgres:16
     environment:
-      - POSTGRES_DB=${POSTGRESS_DB}
-      - POSTGRES_USER=${POSTGRESS_USER}
-      - POSTGRES_PASSWORD=${POSTGRESS_PASSWORD}
+      - POSTGRES_DB=${STOCKDB_DB}
+      - POSTGRES_HOST=${STOCKDB_HOST}
+      - POSTGRES_USER=${STOCKDB_USER}
+      - POSTGRES_PASSWORD=${STOCKDB_PASSWORD}
       - POSTGRES_INITDB_ARGS=--auth=trust
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./stockdb_init.sql:/docker-entrypoint-initdb.d/stockdb_init.sql
     ports:
-      - "5432:5432"
+      - "${STOCKDB_PORT}:${STOCKDB_PORT}"
+
+  authdb:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=${AUTHDB_DB}
+      - POSTGRES_HOST=${AUTHDB_HOST}
+      - POSTGRES_USER=${AUTHDB_USER}
+      - POSTGRES_PASSWORD=${AUTHDB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth=trust
+    volumes:
+      - authdb:/var/lib/postgresql/data
+      - ./authdb_init.sql:/docker-entrypoint-initdb.d/authdb_init.sql
+    ports:
+      - "${AUTHDB_PORT}:${AUTHDB_PORT}"
+
+  auth-backend:
+    build:
+      context: ./auth-backend
+      dockerfile: Dockerfile
+    ports:
+      - "${AUTH_BACKEND_PORT}:${AUTH_BACKEND_PORT}"
+    depends_on:
+      - authdb
+    environment:
+      - FRONTEND_HOST=${FRONTEND_HOST}
+      - FRONTEND_PORT=${FRONTEND_PORT}
+      - AUTHDB_HOST=${AUTHDB_HOST}
+      - AUTHDB_DB=${AUTHDB_DB}
+      - AUTHDB_USER=${AUTHDB_USER}
+      - AUTHDB_PASSWORD=${AUTHDB_PASSWORD}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JTW_ALGORITHM=${JTW_ALGORITHM}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JTW_ACCESS_TOKEN_EXPIRE_MINUTES}
 
   fetcher:
     build: ./fetcher
     ports:
-      - "3000:3000"
+      - "${FETCHER_PORT}:${FETCHER_PORT}"
     depends_on:
-      - db
+      - stockdb
     environment:
-      - DB_HOST=db
-      - DB_NAME=${POSTGRESS_DB}
-      - DB_USER=${POSTGRESS_USER}
-      - DB_PASS=${POSTGRESS_PASSWORD}
+      - FRONTEND_HOST=${FRONTEND_HOST}
+      - FRONTEND_PORT=${FRONTEND_PORT}
+      - STOCKDB_HOST=${STOCKDB_HOST}
+      - STOCKDB_DB=${STOCKDB_DB}
+      - STOCKDB_USER=${STOCKDB_USER}
+      - STOCKDB_PASSWORD=${STOCKDB_PASSWORD}
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    command: yarn dev --host 0.0.0.0
     ports:
-      - "5000:5000"
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     stdin_open: true
     tty: true
     depends_on:
       - fetcher
 
   nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+
     image: nginx:alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "8000:8000"
+      - "${SERVER_PORT}:${SERVER_PORT}"
     depends_on:
       - frontend
       - fetcher
 
 volumes:
   pgdata:
-
+  authdb:
